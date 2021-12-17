@@ -253,12 +253,20 @@ void cell::value(const std::string &s)
     value(rich_text(check_string(s)));
 }
 
-void cell::value(const rich_text &text)
+void cell::value(const rich_text &text, bool inlined)
 {
     check_string(text.plain_text());
-
-    d_->type_ = type::shared_string;
-    d_->value_numeric_ = static_cast<double>(workbook().add_shared_string(text));
+    
+    if (inlined)
+    {
+        d_->type_ = type::inline_string;
+        d_->value_text_ = text;
+    }
+    else
+    {
+        d_->type_ = type::shared_string;
+        d_->value_numeric_ = static_cast<double>(workbook().add_shared_string(text));
+    }
 }
 
 void cell::value(const char *c)

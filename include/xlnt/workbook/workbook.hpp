@@ -65,6 +65,7 @@ class range;
 class range_reference;
 class relationship;
 class streaming_workbook_reader;
+class streaming_workbook_writer;
 class style;
 class style_serializer;
 class theme;
@@ -216,6 +217,8 @@ public:
     /// to make sure the sheet exists before calling this method.
     /// </summary>
     const worksheet sheet_by_title(const std::string &title) const;
+
+    const relationship sheet_rel_by_title(const std::string &title) const;
 
     /// <summary>
     /// Returns the worksheet at the given index. This will throw an exception
@@ -852,6 +855,7 @@ public:
 
 private:
     friend class streaming_workbook_reader;
+    friend class streaming_workbook_writer;
     friend class worksheet;
     friend class detail::xlsx_consumer;
     friend class detail::xlsx_producer;
@@ -896,6 +900,8 @@ private:
     /// of the given worksheet, ws.
     /// </summary>
     void register_worksheet_part(worksheet ws, relationship_type type);
+
+    void register_worksheet(worksheet ws);
 
     /// <summary>
     /// Removes calcChain part from manifest if no formulae remain in workbook.

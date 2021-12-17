@@ -249,7 +249,7 @@ std::string content_type(xlnt::relationship_type type)
     case relationship_type::volatile_dependencies:
         return "application/vnd.openxmlformats-officedocument.spreadsheetml.volatileDependencies+xml";
     case relationship_type::vbaproject:
-        return "application/vnd.ms-office.vbaProject";        
+        return "application/vnd.ms-office.vbaProject";
     case relationship_type::worksheet:
         return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
     }
@@ -644,6 +644,52 @@ void workbook::register_worksheet_part(worksheet ws, relationship_type type)
     }
 }
 
+void workbook::register_worksheet(worksheet ws)
+{
+    // unique sheet id
+    size_t sheet_id = 1;
+    for (const auto ws : *this)
+    {
+        sheet_id = std::max(sheet_id, ws.id() + 1);
+    }
+    
+    d_->worksheets_.push_back(detail::worksheet_impl(this, sheet_id, ws.title()));
+
+    // unique sheet file name
+    auto workbook_rel = d_->manifest_.relationship(path("/"), relationship_type::office_document);
+    auto workbook_files = d_->manifest_.relationships(workbook_rel.target().path());
+    auto rel_vec_contains = [&workbook_files](const xlnt::path &new_file_id) {
+        return workbook_files.end() != std::find_if(workbook_files.begin(), workbook_files.end(), [&new_file_id](const xlnt::relationship &rel) {
+            return rel.target().path() == new_file_id;
+        });
+    };
+
+    size_t file_id = sheet_id;
+    xlnt::path sheet_relative_path;
+    do
+    {
+        sheet_relative_path = path("worksheets").append("sheet" + std::to_string(file_id++) + ".xml");
+    } while (rel_vec_contains(sheet_relative_path));
+
+    uri relative_sheet_uri(sheet_relative_path.string());
+    auto absolute_sheet_path = path("/xl").append(relative_sheet_uri.path());
+    d_->manifest_.register_override_type(
+        absolute_sheet_path, "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml");
+    auto ws_rel = d_->manifest_.register_relationship(
+        workbook_rel.target(), relationship_type::worksheet, relative_sheet_uri, target_mode::internal);
+
+    // try and insert into the worksheets map
+    // if the insert fails, we have a duplicate sheet name
+    auto insert_result = d_->sheet_title_rel_id_map_.insert(std::make_pair(ws.title(), ws_rel));
+    if (!insert_result.second) // insert failed, duplication detected
+    {
+        throw invalid_sheet_title(ws.title());
+    }
+
+    update_sheet_properties();
+    //reorder_relationships();
+}
+
 const worksheet workbook::sheet_by_title(const std::string &title) const
 {
     for (auto &impl : d_->worksheets_)
@@ -727,6 +773,14 @@ const worksheet workbook::sheet_by_id(std::size_t id) const
     }
 
     throw key_not_found();
+}
+
+const relationship workbook::sheet_rel_by_title(const std::string &title) const
+{
+    auto ws_rel_id = d_->sheet_title_rel_id_map_.at(title);
+    auto wb_rel = d_->manifest_.relationship(path("/"), xlnt::relationship_type::office_document);
+    auto ws_rel = d_->manifest_.relationship(wb_rel.target().path(), ws_rel_id);
+    return ws_rel;
 }
 
 bool workbook::sheet_hidden_by_index(std::size_t index) const

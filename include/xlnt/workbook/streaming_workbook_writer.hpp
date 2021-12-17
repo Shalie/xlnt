@@ -67,6 +67,8 @@ public:
     /// </summary>
     cell add_cell(const cell_reference &ref);
 
+    void add_comment(const cell_reference &ref, const std::string &comment);
+
     /// <summary>
     /// Ends writing of data to the current sheet and begins writing a new sheet
     /// with the given title.
@@ -111,6 +113,13 @@ public:
     std::unique_ptr<std::ostream> part_stream_;
     std::unique_ptr<std::streambuf> part_stream_buffer_;
     std::unique_ptr<xml::serializer> serializer_;
+
+  private:
+      
+    void end_current_streaming();
+    
+    bool streaming_sheet_ = false;
+    bool streaming_comments_ = false;
 };
 
 } // namespace xlnt

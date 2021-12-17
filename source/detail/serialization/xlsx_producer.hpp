@@ -123,6 +123,16 @@ private:
 	void write_dialogsheet(const relationship &rel);
 	void write_worksheet(const relationship &rel);
 
+    void stream_worksheet_begin();
+    void stream_worksheet_end();
+    void stream_worksheet_rels();
+    void stream_current_cell();
+    void stream_new_row(const cell_reference &ref);
+    void stream_comment(const cell_reference &ref, const std::string &comment);
+    void stream_comments_begin();
+    void stream_comments_end();
+    void stream_vml_drawings(const relationship &rel, worksheet ws);
+
 	// Sheet Relationship Target Parts
 
 	void write_comments(const relationship &rel, worksheet ws, const std::vector<cell_reference> &cells);
@@ -238,6 +248,8 @@ private:
     std::unique_ptr<detail::cell_impl> streaming_cell_;
 
     detail::cell_impl *current_cell_;
+    xlnt::row_t current_row_;
+    std::vector<cell_reference> current_comment_cells;
 
     detail::worksheet_impl *current_worksheet_;
     detail::number_serialiser converter_;

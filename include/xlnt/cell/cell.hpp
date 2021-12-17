@@ -192,7 +192,7 @@ public:
     /// <summary>
     /// Sets the value of this cell to the given value.
     /// </summary>
-    void value(const rich_text &text_value);
+    void value(const rich_text &text_value, bool inlined = false);
 
     /// <summary>
     /// Sets the value and formatting of this cell to that of other_cell.

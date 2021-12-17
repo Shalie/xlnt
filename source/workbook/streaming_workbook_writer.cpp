@@ -30,6 +30,7 @@
 #include <xlnt/workbook/workbook.hpp>
 #include <xlnt/worksheet/worksheet.hpp>
 #include <detail/implementations/cell_impl.hpp>
+#include <detail/implementations/workbook_impl.hpp>
 #include <detail/implementations/worksheet_impl.hpp>
 #include <detail/serialization/open_stream.hpp>
 #include <detail/serialization/vector_streambuf.hpp>
@@ -50,6 +51,8 @@ void streaming_workbook_writer::close()
 {
     if (producer_)
     {
+        end_current_streaming();
+        producer_->populate_archive(true);
         producer_.reset(nullptr);
         stream_buffer_.reset(nullptr);
     }
@@ -60,9 +63,28 @@ cell streaming_workbook_writer::add_cell(const cell_reference &ref)
     return producer_->add_cell(ref);
 }
 
+void streaming_workbook_writer::add_comment(const cell_reference &ref, const std::string &comment)
+{
+    //start comment stream if this is the first comment (also ends sheet streaming in producer)
+    if (!streaming_comments_)
+    {
+        producer_->stream_comments_begin();
+        streaming_sheet_ = false;
+        streaming_comments_ = true;
+    }
+
+    producer_->stream_comment(ref, comment);
+}
+
 worksheet streaming_workbook_writer::add_worksheet(const std::string &title)
 {
-    return producer_->add_worksheet(title);
+    end_current_streaming();
+
+    auto sheet = producer_->add_worksheet(title);
+    workbook_->register_worksheet(sheet);
+    producer_->stream_worksheet_begin();
+    streaming_sheet_ = true;
+    return sheet;
 }
 
 void streaming_workbook_writer::open(std::vector<std::uint8_t> &data)
@@ -103,6 +125,29 @@ void streaming_workbook_writer::open(std::ostream &stream)
     producer_->current_worksheet_ = new detail::worksheet_impl(workbook_.get(), 1, "Sheet1");
     producer_->current_cell_ = new detail::cell_impl();
     producer_->current_cell_->parent_ = producer_->current_worksheet_;
+    producer_->current_row_ = 0;
+    workbook_->remove_sheet(workbook_->active_sheet());
+}
+
+void streaming_workbook_writer::end_current_streaming()
+{
+    bool finished = false;
+
+    if (streaming_sheet_)
+    {
+        producer_->stream_worksheet_end();
+        streaming_sheet_ = false;
+        finished = true;
+    }
+    if (streaming_comments_)
+    {
+        producer_->stream_comments_end();
+        streaming_comments_ = false;
+        finished = true;
+    }
+
+    if (finished)
+        producer_->stream_worksheet_rels();
 }
 
 } // namespace xlnt

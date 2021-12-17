@@ -709,10 +709,23 @@ public:
 
         auto b2 = writer.add_cell("B2");
         b2.value("B2!");
+        b2.fill(xlnt::fill::solid(xlnt::rgb_color(51, 204, 204)));
 
         auto c3 = writer.add_cell("C3");
         b2.value("should not change");
         c3.value("C3!");
+
+        //write comments after writing all the values
+        writer.add_comment("B2", "comment B");
+        writer.add_comment("C3", "comment C");
+
+        writer.add_worksheet("extra sheet");
+        auto a1 = writer.add_cell("A1");
+        a1.value("A1!");
+
+        writer.add_worksheet("empty sheet");
+
+        writer.close();
     }
 
     void test_load_save_german_locale()
@@ -765,21 +778,20 @@ public:
         auto cell = ws.cell("A1");
         xlnt_assert_equals(cell.value<std::string>(), std::string("WDG_IC_00000003.aut"));
     }
-    
+
     void test_formatting()
     {
         xlnt::workbook wb;
         wb.load(path_helper::test_file("excel_test_sheet.xlsx"));
         auto ws = wb.active_sheet();
         auto cell = ws.cell("A1");
-        
+
         xlnt_assert_equals(cell.value<std::string>(), std::string("Bolder Text mixed with normal \ntext first line Bold And Underline"));
-        
+
         auto rt = cell.value<xlnt::rich_text>();
         xlnt_assert_equals(rt.runs().size(), 12);
-        
-        auto assert_run = [](xlnt::rich_text_run run, std::string text, std::string typeface, xlnt::color color, std::size_t size, bool bold, bool strike, xlnt::font::underline_style underline)
-        {
+
+        auto assert_run = [](xlnt::rich_text_run run, std::string text, std::string typeface, xlnt::color color, std::size_t size, bool bold, bool strike, xlnt::font::underline_style underline) {
             xlnt_assert_equals(run.first, text);
             xlnt_assert(run.second.is_set());
             auto font = run.second.get();
@@ -790,7 +802,7 @@ public:
             xlnt_assert_equals(font.strikethrough(), strike);
             xlnt_assert_equals(font.underline(), underline);
         };
-        
+
         assert_run(rt.runs()[0], "Bolder", "Calibri (Body)", xlnt::theme_color(1), 12, true, false, xlnt::font::underline_style::none);
         assert_run(rt.runs()[1], " Text ", "Calibri", xlnt::theme_color(1), 12, true, false, xlnt::font::underline_style::none);
         assert_run(rt.runs()[2], "mixed ", "Calibri", xlnt::color::red(), 12, false, false, xlnt::font::underline_style::none);
